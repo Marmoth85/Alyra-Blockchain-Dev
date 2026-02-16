@@ -168,7 +168,7 @@ contract Voting is Ownable {
                 }
             }
         } else {
-            // random winner from ex-aequo proposals (still excluding admin vote in ex-aequo case).
+            // random winner from ex-aequo proposals (including admin vote in ex-aequo case when number of case > 2).
             uint256[] memory tiedProposals = new uint256[](amountOfProposalWithMaxVote);
             uint256 indexPossibleWinner;
             string memory value;
