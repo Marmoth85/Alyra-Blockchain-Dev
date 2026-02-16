@@ -204,4 +204,13 @@ contract Voting is Ownable {
         return (maxVote, amountOfProposalWithMaxVote, lastFoundId);
     }
 
+    function getWinner() public view returns(Proposal memory) {
+        require(winningProposalId != 0, "Not yet calculated.");
+        return _proposals[winningProposalId];
+    }
+
+    function getVote(address _address) public view isWhitelisted returns(Voter memory) {
+        return _whitelist[_address];
+    }
+
 }
