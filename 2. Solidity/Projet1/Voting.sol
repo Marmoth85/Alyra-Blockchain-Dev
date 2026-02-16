@@ -37,9 +37,8 @@ contract Voting is Ownable {
 
     mapping(address => Voter) _whitelist;
     address[] _voterList;
-    uint256 _numberOfProposals;
     mapping(uint => Proposal) _proposals;
-
+    uint256 _numberOfProposals;
     
     constructor() Ownable(msg.sender) {
         _whitelist[msg.sender] = Voter(true, false, 0);
@@ -56,6 +55,11 @@ contract Voting is Ownable {
 
     modifier isWhitelisted() {
         require(_whitelist[msg.sender].isRegistered, "This operation is allowed only for whitelisted address.");
+        _;
+    }
+
+    modifier hasNotVoted() {
+        require(!_whitelist[msg.sender].hasVoted, "You have already voted.");
         _;
     }
 
@@ -76,12 +80,14 @@ contract Voting is Ownable {
         if (workflowStatus < WorkflowStatus.ProposalsRegistrationsStarted) {
             errorMessage = "The registering proposals session is not yet opened.";
         } else if (workflowStatus > WorkflowStatus.ProposalsRegistrationsStarted) {
-            errorMessage = "The registering proposals is already closed.";
+            errorMessage = "The registering proposals session is already closed.";
         }
+
         require(workflowStatus == WorkflowStatus.ProposalsRegistrationsStarted, errorMessage);
-        require(isProposalExists(_proposition), "You can't add an already existing proposal.");
-        _proposals[_numberOfProposals] = Proposal(_proposition, 0);
+        require(!isProposalExists(_proposition), "You can't add an already existing proposal.");
+
         _numberOfProposals++;
+        _proposals[_numberOfProposals] = Proposal(_proposition, 0);
         emit ProposalRegistered(_numberOfProposals);
     }
 
@@ -92,6 +98,35 @@ contract Voting is Ownable {
             }
         }
         return false;
+    }
+
+    function endProposalsRegistering() public onlyOwner {
+        require(workflowStatus == WorkflowStatus.ProposalsRegistrationsStarted, "Ending proposals addition is only possible when the proposal registration session is opened.");
+        workflowStatus = WorkflowStatus.ProposalsRegistrationsEnded;
+        emit WorkflowStatusChange(WorkflowStatus.ProposalsRegistrationsStarted, WorkflowStatus.ProposalsRegistrationsEnded);
+    }
+
+    function startVotingSession() public onlyOwner {
+        require(workflowStatus == WorkflowStatus.ProposalsRegistrationsEnded, "Starting voting session is only possible when the proposal registration session is closed.");
+        workflowStatus = WorkflowStatus.VotingSessionStarted;
+        emit WorkflowStatusChange(WorkflowStatus.ProposalsRegistrationsEnded, WorkflowStatus.VotingSessionStarted);
+    }
+
+    function setVote(uint _proposalId) public isWhitelisted hasNotVoted {
+        string memory errorMessage;
+        if (workflowStatus < WorkflowStatus.VotingSessionStarted) {
+            errorMessage = "The voting session is not yet opened.";
+        } else if (workflowStatus > WorkflowStatus.VotingSessionEnded) {
+            errorMessage = "The voting session is already closed.";
+        }
+        require(workflowStatus == WorkflowStatus.VotingSessionStarted, errorMessage);
+        require(keccak256(abi.encodePacked("")) != keccak256(abi.encodePacked(_proposals[_proposalId].description)), "This proposal does not exists");
+
+        _whitelist[msg.sender].hasVoted = true;
+        _whitelist[msg.sender].votedProposalId = _proposalId;
+        _proposals[_proposalId].voteCount++;
+
+        emit Voted(msg.sender, _proposalId);
     }
 
 }
