@@ -29,8 +29,6 @@ contract Voting is Ownable {
     event WorkflowStatusChange(WorkflowStatus previousStatus, WorkflowStatus newStatus);
     event ProposalRegistered(uint proposalId);
     event Voted(address voter, uint proposalId);
-
-    address _adminAddress;
     
     uint public winningProposalId;
     WorkflowStatus public workflowStatus;
@@ -39,11 +37,11 @@ contract Voting is Ownable {
     address[] _voterList;
     mapping(uint => Proposal) _proposals;
     uint256 _numberOfProposals;
-    
+
+
     constructor() Ownable(msg.sender) {
         _whitelist[msg.sender] = Voter(true, false, 0);
         _voterList.push(msg.sender);
-        _adminAddress = msg.sender;
     }
 
     modifier checkAddressAdding(address _address) {
@@ -92,7 +90,7 @@ contract Voting is Ownable {
     }
 
     function isProposalExists(string memory _proposition) private view returns(bool) {
-        for(uint i = 0; i < _numberOfProposals; i++) {
+        for(uint i = 1; i <= _numberOfProposals; i++) {
             if (keccak256(abi.encodePacked(_proposition)) == keccak256(abi.encodePacked(_proposals[i].description))) {
                 return true;
             }
@@ -124,9 +122,86 @@ contract Voting is Ownable {
 
         _whitelist[msg.sender].hasVoted = true;
         _whitelist[msg.sender].votedProposalId = _proposalId;
-        _proposals[_proposalId].voteCount++;
 
         emit Voted(msg.sender, _proposalId);
+    }
+
+    function endVotingSession() public onlyOwner {
+        require(workflowStatus == WorkflowStatus.VotingSessionStarted, "Closing voting session is only possible when the voting session is opened.");
+        workflowStatus = WorkflowStatus.VotingSessionEnded;
+        emit WorkflowStatusChange(WorkflowStatus.VotingSessionStarted, WorkflowStatus.VotingSessionEnded);
+    }
+
+    function tallyVotes() public onlyOwner {
+        require(workflowStatus == WorkflowStatus.VotingSessionEnded, "Voting session must be closed before to count the votes.");
+
+        count();
+
+        workflowStatus = WorkflowStatus.VotesTallied;
+        emit WorkflowStatusChange(WorkflowStatus.VotingSessionEnded, WorkflowStatus.VotesTallied);
+    }
+
+    function count() private {
+        for(uint256 i = 0; i < _voterList.length; i++) {
+            address _address = _voterList[i];
+            if (_whitelist[_address].hasVoted) {
+                uint256 _proposalId = _whitelist[_address].votedProposalId;
+                _proposals[_proposalId].voteCount++;
+            }
+        }
+
+        (uint256 maxVote, uint256 amountOfProposalWithMaxVote, uint256 lastFoundId) = getMaxAmountVoteSummary();
+
+        if (amountOfProposalWithMaxVote == 1) {
+            winningProposalId = lastFoundId;
+            return;
+        }
+
+        if (amountOfProposalWithMaxVote == 2 
+            && _whitelist[owner()].hasVoted 
+            && _proposals[_whitelist[owner()].votedProposalId].voteCount == maxVote) {
+
+            for(uint i=1; i <= _numberOfProposals; i++) {
+                if (_proposals[i].voteCount == maxVote && _whitelist[owner()].votedProposalId != i) {
+                    winningProposalId = i;
+                    return;
+                }
+            }
+        } else {
+            // random winner from ex-aequo proposals (still excluding admin vote in ex-aequo case).
+            uint256[] memory tiedProposals = new uint256[](amountOfProposalWithMaxVote);
+            uint256 indexPossibleWinner;
+            string memory value;
+
+            for (uint256 i = 1; i <= _numberOfProposals; i++) {
+                if (_proposals[i].voteCount == maxVote) {
+                    tiedProposals[indexPossibleWinner] = i;
+                    indexPossibleWinner++;
+                    value = string.concat(value, _proposals[i].description);
+                }
+            }
+
+            uint256 randomWinnerIndex = uint256(keccak256(abi.encodePacked(block.timestamp, value, amountOfProposalWithMaxVote))) % amountOfProposalWithMaxVote;
+
+            winningProposalId = tiedProposals[randomWinnerIndex];
+        }
+    }
+
+    function getMaxAmountVoteSummary() private view returns(uint, uint, uint) {
+        uint256 maxVote;
+        uint256 amountOfProposalWithMaxVote;
+        uint256 lastFoundId;
+        for(uint256 i=1; i <= _numberOfProposals; i++) {
+            if(_proposals[i].voteCount == maxVote) {
+                amountOfProposalWithMaxVote++;
+                lastFoundId = i;
+            } else if (_proposals[i].voteCount > maxVote) {
+                maxVote = _proposals[i].voteCount;
+                amountOfProposalWithMaxVote = 1;
+                lastFoundId = i;
+            }
+        }
+        return (maxVote, amountOfProposalWithMaxVote, lastFoundId);
     }
 
 }
