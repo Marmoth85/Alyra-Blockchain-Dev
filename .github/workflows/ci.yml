@@ -34,8 +34,8 @@ jobs:
       # Installe les dépendances seulement si le cache est absent
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: npm ci
+        run: cd 4.\ Testing/Projet2 && npm ci
 
       # Lance les tests Hardhat
       - name: Run Tests
-        run: npx hardhat test --coverage
+        run: cd 4.\ Testing/Projet2 && npx hardhat test --coverage
