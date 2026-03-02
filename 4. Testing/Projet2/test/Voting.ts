@@ -30,6 +30,17 @@ async function deployVotingWithProposals() {
     return { voting, owner, account2, account3, account4, account5 };
 }
 
+async function deployVotingWithVotes() {
+    const { voting, owner, account2, account3, account4, account5 } = await deployVotingWithProposals();
+    await voting.connect(owner).startVotingSession();
+
+    await voting.connect(account2).setVote(1n);
+    await voting.connect(account3).setVote(2n);
+    await voting.connect(account4).setVote(2n);
+
+    return { voting, owner, account2, account3, account4, account5 };
+}
+
 
 // TESTS
 describe("Voting tests", function () {
@@ -51,11 +62,6 @@ describe("Voting tests", function () {
 
         this.beforeEach(async () => {
             ({voting, owner, account2, account3} = await networkHelpers.loadFixture(deployVoting));
-        });
-
-        it('Should emit event when registering a voter', async function() {
-            await expect(voting.connect(owner).addVoter(account2.address))
-                .to.emit(voting, 'VoterRegistered').withArgs(account2.address);
         });
         
         it('Should revert event when trying to register a voter without being owner', async function() {
@@ -85,6 +91,19 @@ describe("Voting tests", function () {
             await voting.connect(owner).addVoter(account2.address);
             const voter = await voting.connect(account2).getVoter(account3.address);
             expect(voter.isRegistered).to.equal(false);
+        });
+
+        it('Should emit event when registering a voter', async function() {
+            await expect(voting.connect(owner).addVoter(account2.address))
+                .to.emit(voting, 'VoterRegistered').withArgs(account2.address);
+        });
+
+        it('Should have the right workflow status after registering a voter', async function() {
+            await voting.connect(owner).addVoter(account2.address);
+            // workflowStatus is in the third slot of the storage according to the artifact, so at index 2
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(0); // RegisteringVoters
         });
     });
 
@@ -127,6 +146,14 @@ describe("Voting tests", function () {
             await voting.connect(owner).startProposalsRegistering();
             await expect(voting.connect(account2).addProposal('Proposal 1'))
                 .to.emit(voting, 'ProposalRegistered').withArgs(1n);
+        });
+
+        it('Should have the right workflow status after registering a proposal', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(account2).addProposal('Proposal 1');
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(1); // ProposalsRegistrationStarted
         });
     });
 
@@ -191,9 +218,67 @@ describe("Voting tests", function () {
             await expect(voting.connect(account2).setVote(1n))
                 .to.emit(voting, 'Voted').withArgs(account2.address, 1n);
         });
+
+        it('Should have the right workflow status before opening voting session', async function() {
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(2); // ProposalsRegistrationEnded
+        });
+
+        it('Should have the right workflow status after posting a vote', async function() {
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(account2).setVote(1n);
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(3); // VotingSessionStarted
+        });
     });
 
     describe('Tallying votes tests', async function() {
+        let voting: any;
+        let owner: any;
+        let account2: any;
+
+        this.beforeEach(async () => {
+            ({voting, owner, account2 } = await networkHelpers.loadFixture(deployVotingWithVotes));
+        });
+
+        it('Should not tally votes if the sender is not the owner', async function() {
+            await expect(voting.connect(account2).tallyVotes())
+                .to.be.revertedWithCustomError(voting, 'OwnableUnauthorizedAccount');
+        });
+
+        it('Should not tally votes if the voting session is not ended', async function() {
+            await expect(voting.connect(owner).tallyVotes())
+                .to.be.revertedWith('Current status is not voting session ended');
+        });
+
+        it('Should have the right winning proposal Id after tallying votes', async function() {
+            await voting.connect(owner).endVotingSession();
+            await voting.connect(owner).tallyVotes();
+            expect(await voting.winningProposalID()).to.equal(2n);
+        });
+
+        it('Should have the right workflow status before tallying votes', async function() {
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(3); // VotingSessionStarted
+        });
+
+        it('Should have the right workflow status after tallying votes', async function() {
+            await voting.connect(owner).endVotingSession();
+            await voting.connect(owner).tallyVotes();
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(5); // VotesTallied
+        });
+
+        it('Should emit VotesTallied event after tallying votes', async function() {
+            await voting.connect(owner).endVotingSession();
+            // WorkflowStatus.VotingSessionEnded = 4, WorkflowStatus.VotesTallied = 5
+            await expect(voting.connect(owner).tallyVotes())
+                .to.emit(voting, 'WorkflowStatusChange').withArgs(4n, 5n);
+        });
     });
 
     describe('State management tests', async function() {
