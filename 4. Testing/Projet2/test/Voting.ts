@@ -281,11 +281,55 @@ describe("Voting tests", function () {
         });
     });
 
+    describe('Getters tests', async function() {
+
+        let voting: any;
+        let owner: any;
+        let account2: any; // is a voter
+        let account3: any; // is a voter
+        let account4: any; // is a voter
+        let account5: any; // is not a voter
+
+        this.beforeEach(async () => {
+            ({voting, owner, account2, account3, account4, account5} = await networkHelpers.loadFixture(deployVotingWithProposals));
+        });
+
+        it('Should not get a voter if the sender is not a registered voter', async function() {
+            await expect(voting.connect(account5).getVoter(account2.address))
+                .to.be.revertedWith("You're not a voter");
+        });
+
+        it('Should get voter when the sender is a registered voter', async function() {
+            const voter = await voting.connect(account2).getVoter(account4.address);
+            expect(voter.isRegistered).to.equal(true);
+            // we don't check the other attributes of the voter because the vote is not done yet
+        });
+
+        it('Should get default object voter when the requested voter is not registered', async function() {
+            const voter = await voting.connect(account2).getVoter(account5.address);
+            expect(voter.isRegistered).to.equal(false);
+        });
+
+        it('Should not get a proposal if the sender is not a registered voter', async function() {
+            await expect(voting.connect(account5).getOneProposal(1n))
+                .to.be.revertedWith("You're not a voter");
+        });
+
+        it('Should get proposal when the sender is a registered voter', async function() {
+            const proposal = await voting.connect(account2).getOneProposal(1n);
+            expect(proposal.description).to.equal("Proposal 1");
+        });
+
+        it('Should get an error when trying to get a non-existent proposal', async function() {
+            await expect(voting.connect(account2).getOneProposal(99n))
+                .to.be.revertedWith("Proposal doesn't exist");
+        });
+    });
+
     describe('State management tests', async function() {
     });
 
-    describe('Getters tests', async function() {
-    });
+    
 
     
 
