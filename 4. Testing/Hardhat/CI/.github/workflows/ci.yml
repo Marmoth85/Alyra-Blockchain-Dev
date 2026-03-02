@@ -38,4 +38,4 @@ jobs:
 
       # Lance les tests Hardhat
       - name: Run Tests
-        run: npx hardhat test
+        run: npx hardhat test --coverage
