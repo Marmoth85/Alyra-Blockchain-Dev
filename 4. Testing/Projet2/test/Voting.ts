@@ -284,14 +284,12 @@ describe("Voting tests", function () {
     describe('Getters tests', async function() {
 
         let voting: any;
-        let owner: any;
         let account2: any; // is a voter
-        let account3: any; // is a voter
         let account4: any; // is a voter
         let account5: any; // is not a voter
 
         this.beforeEach(async () => {
-            ({voting, owner, account2, account3, account4, account5} = await networkHelpers.loadFixture(deployVotingWithProposals));
+            ({voting, account2, account4, account5} = await networkHelpers.loadFixture(deployVotingWithProposals));
         });
 
         it('Should not get a voter if the sender is not a registered voter', async function() {
@@ -327,10 +325,132 @@ describe("Voting tests", function () {
     });
 
     describe('State management tests', async function() {
+
+        let voting: any;
+        let owner: any;
+        let account2: any;
+
+        this.beforeEach(async () => {
+            ({voting, owner, account2} = await networkHelpers.loadFixture(deployVotingWithVoters));
+        });
+
+        it('Should have the RegisteringVoters workflow status right after deployment', async function() {
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(0); // RegisteringVoters
+        });
+
+        it('Should not be possible to start proposal registration if the sender is not the owner', async function() {
+            await expect(voting.connect(account2).startProposalsRegistering())
+                .to.be.revertedWithCustomError(voting, 'OwnableUnauthorizedAccount');
+        });
+
+        it('Should not be possible to start proposal registration if the workflow status is not RegisteringVoters', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await expect(voting.connect(owner).startProposalsRegistering())
+                .to.be.revertedWith('Registering proposals cant be started now');
+        });
+
+        it('Should have the ProposalsRegistrationStarted workflow status after starting proposal registration', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(1); // ProposalsRegistrationStarted
+        });
+
+        it('Should have a GENESIS proposal in the list of proposals', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            const proposal = await voting.connect(account2).getOneProposal(0n);
+            expect(proposal.description).to.equal("GENESIS");
+        });
+
+        it('Should emit WorkflowStatusChange event after starting proposal registration', async function() {
+            await expect(voting.connect(owner).startProposalsRegistering())
+                .to.emit(voting, 'WorkflowStatusChange').withArgs(0n, 1n);
+        });
+
+        it('Should not be possible to end proposal registration if the sender is not the owner', async function() {
+            await expect(voting.connect(account2).endProposalsRegistering())
+                .to.be.revertedWithCustomError(voting, 'OwnableUnauthorizedAccount');
+        });
+
+        it('Should not be possible to end proposal registration if the workflow status is not ProposalsRegistrationStarted', async function() {
+            await expect(voting.connect(owner).endProposalsRegistering())
+                .to.be.revertedWith('Registering proposals havent started yet');
+        });
+
+        it('Should have the ProposalsRegistrationEnded workflow status after ending proposal registration', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(owner).endProposalsRegistering();
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(2); // ProposalsRegistrationEnded
+        });
+
+        it('Should emit WorkflowStatusChange event after ending proposal registration', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await expect(voting.connect(owner).endProposalsRegistering())
+                .to.emit(voting, 'WorkflowStatusChange').withArgs(1n, 2n);
+        });
+
+        it('Should not be possible to start voting session if the sender is not the owner', async function() {
+            await expect(voting.connect(account2).startVotingSession())
+                .to.be.revertedWithCustomError(voting, 'OwnableUnauthorizedAccount');
+        });
+
+        it('Should not be possible to start voting session if the workflow status is not ProposalsRegistrationEnded', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(owner).endProposalsRegistering();
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(owner).endVotingSession();
+            await expect(voting.connect(owner).startVotingSession())
+                .to.be.revertedWith('Registering proposals phase is not finished');
+        });
+
+        it('Should have the VotingSessionStarted workflow status after starting voting session', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(owner).endProposalsRegistering();
+            await voting.connect(owner).startVotingSession();
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(3); // VotingSessionStarted
+        });
+
+        it('Should emit WorkflowStatusChange event after starting voting session', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(owner).endProposalsRegistering();
+            await expect(voting.connect(owner).startVotingSession())
+                .to.emit(voting, 'WorkflowStatusChange').withArgs(2n, 3n);
+        });
+
+        it('Should not be possible to end voting session if the sender is not the owner', async function() {
+            await expect(voting.connect(account2).endVotingSession())
+                .to.be.revertedWithCustomError(voting, 'OwnableUnauthorizedAccount');
+        });
+
+        it('Should not be possible to end voting session if the workflow status is not VotingSessionStarted', async function() {
+            await expect(voting.connect(owner).endVotingSession())
+                .to.be.revertedWith('Voting session havent started yet');
+        });
+        
+        it('Should have the VotingSessionEnded workflow status after ending voting session', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(owner).endProposalsRegistering();
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(owner).endVotingSession();
+            const storageValue = await ethers.provider.getStorage(voting.target, 2);
+            const workflowStatus = parseInt(storageValue, 16);
+            expect(workflowStatus).to.equal(4); // VotingSessionEnded
+        });
+
+        it('Should emit WorkflowStatusChange event after ending voting session', async function() {
+            await voting.connect(owner).startProposalsRegistering();
+            await voting.connect(owner).endProposalsRegistering();
+            await voting.connect(owner).startVotingSession();
+            await expect(voting.connect(owner).endVotingSession())
+                .to.emit(voting, 'WorkflowStatusChange').withArgs(3n, 4n);
+        });
+
     });
-
-    
-
-    
 
 });
