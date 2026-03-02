@@ -6,15 +6,28 @@ const { ethers, networkHelpers } = await network.connect();
 // Context management fonctions
 async function deployVoting() {
     const voting = await ethers.deployContract('Voting');
-    const [owner, account2, account3, account4] = await ethers.getSigners();
-    return { voting, owner, account2, account3, account4};
+    const [owner, account2, account3, account4, account5] = await ethers.getSigners();
+    return { voting, owner, account2, account3, account4, account5 } ;
 }
 
 async function deployVotingWithVoters() {
-    const { voting, owner, account2, account3, account4 } = await deployVoting();
+    const { voting, owner, account2, account3, account4, account5 } = await deployVoting();
     await voting.connect(owner).addVoter(account2.address);
     await voting.connect(owner).addVoter(account3.address);
-    return { voting, owner, account2, account3, account4 };
+    await voting.connect(owner).addVoter(account4.address);
+    return { voting, owner, account2, account3, account4, account5 };
+}
+
+async function deployVotingWithProposals() {
+    const { voting, owner, account2, account3, account4, account5 } = await deployVotingWithVoters();
+    await voting.connect(owner).startProposalsRegistering();
+    
+    await voting.connect(account2).addProposal('Proposal 1');
+    await voting.connect(account2).addProposal('Proposal 2');
+    await voting.connect(account3).addProposal('Proposal 3');
+
+    await voting.connect(owner).endProposalsRegistering();
+    return { voting, owner, account2, account3, account4, account5 };
 }
 
 
@@ -79,17 +92,16 @@ describe("Voting tests", function () {
     describe('Proposal tests', async function() {
         let voting: any;
         let owner: any;
-        let account2: any;
-        let account3: any;
-        let account4: any;
+        let account2: any; // is a voter
+        let account5: any; // is not a voter
 
         this.beforeEach(async () => {
-            ({voting, owner, account2, account3, account4} = await networkHelpers.loadFixture(deployVotingWithVoters));
+            ({voting, owner, account2, account5} = await networkHelpers.loadFixture(deployVotingWithVoters));
         });
 
         it('Should not add proposal if the sender is not a registered voter', async function() {
             // we should fail before to check the workflow status, so there is no need to set it to the right one
-            await expect(voting.connect(account4).addProposal('Proposal 1'))
+            await expect(voting.connect(account5).addProposal('Proposal 1'))
                 .to.be.revertedWith("You're not a voter");
         });
 
@@ -114,12 +126,71 @@ describe("Voting tests", function () {
         it('Should add proposal and emit event', async function() {
             await voting.connect(owner).startProposalsRegistering();
             await expect(voting.connect(account2).addProposal('Proposal 1'))
-                .to.emit(voting, 'ProposalRegistered')
-                .withArgs(1n);
+                .to.emit(voting, 'ProposalRegistered').withArgs(1n);
         });
     });
 
     describe('Voting tests', async function() {
+        let voting: any;
+        let owner: any;
+        let account2: any; // is a voter
+        let account3: any; // is a voter
+        let account5: any; // is not a voter
+
+        this.beforeEach(async () => {
+            ({voting, owner, account2, account3, account5} = await networkHelpers.loadFixture(deployVotingWithProposals));
+        });
+
+        it('Should not vote if the sender is not a registered voter', async function() {
+            // we should fail before to check the workflow status, so there is no need to set it to the right one
+            await expect(voting.connect(account5).setVote(1n))
+                .to.be.revertedWith("You're not a voter");
+        });
+
+        it('Should not add vote if the voting period is not opened', async function() {
+            await expect(voting.connect(account2).setVote(1n))
+                .to.be.revertedWith('Voting session havent started yet');
+        });
+
+        it('Should not vote if user have already voted', async function() {
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(account2).setVote(1n);
+            await expect(voting.connect(account2).setVote(2n))
+                .to.be.revertedWith('You have already voted');
+        });
+
+        it('Should raised an error if the proposal does not exist', async function() {
+            await voting.connect(owner).startVotingSession();
+            await expect(voting.connect(account2).setVote(4n))
+                .to.be.revertedWith('Proposal not found');
+        });
+
+        it('Should save the correct proposal Id for the voter', async function() {
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(account2).setVote(1n);
+            const voter = await voting.connect(account3).getVoter(account2.address);
+            expect(voter.votedProposalId).to.equal(1n);
+        });
+
+        it('Should save the right boolean hasVoted value for the voter', async function() {
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(account2).setVote(1n);
+            const voter = await voting.connect(account3).getVoter(account2.address);
+            expect(voter.hasVoted).to.equal(true);
+        });
+
+        it('Should have the right amount of votes for the proposal', async function() {
+            await voting.connect(owner).startVotingSession();
+            await voting.connect(account2).setVote(1n);
+            const proposal = await voting.connect(account3).getOneProposal(1n);
+            expect(proposal.voteCount).to.equal(1n);
+        });
+
+        it('Should emit Voted event after voting', async function() {
+            await voting.connect(owner).startVotingSession();
+            await expect(voting.connect(account2).setVote(1n))
+                .to.emit(voting, 'Voted').withArgs(account2.address, 1n);
+        });
     });
 
     describe('Tallying votes tests', async function() {
