@@ -34,7 +34,7 @@ export function WorkflowProgress({ status }: Props) {
 
           {/* Progress fill */}
           <div
-            className="absolute top-4 left-0 h-0.5 bg-green-500 transition-all duration-500"
+            className="absolute top-4 left-0 h-0.5 bg-amber-500 transition-all duration-500"
             style={{
               width: currentStep >= 0
                 ? `${(currentStep / (STEPS.length - 1)) * 100}%`
@@ -54,8 +54,8 @@ export function WorkflowProgress({ status }: Props) {
                 <div
                   className={cn(
                     'relative z-10 flex size-8 items-center justify-center rounded-full border-2 text-xs font-bold transition-all duration-300',
-                    isDone && 'border-green-500 bg-green-500 text-white',
-                    isCurrent && 'border-green-500 bg-white text-green-600 shadow-lg shadow-green-100 ring-4 ring-green-100',
+                    isDone && 'border-amber-500 bg-amber-500 text-black',
+                    isCurrent && 'border-amber-400 bg-card text-amber-400 shadow-lg shadow-amber-900/30 ring-4 ring-amber-500/20',
                     isUpcoming && 'border-border bg-background text-muted-foreground',
                   )}
                 >
@@ -66,8 +66,8 @@ export function WorkflowProgress({ status }: Props) {
                 <span
                   className={cn(
                     'mt-2 text-center text-[10px] leading-tight max-w-[80px]',
-                    isDone && 'text-green-600 font-medium',
-                    isCurrent && 'text-green-700 font-semibold',
+                    isDone && 'text-amber-500 font-medium',
+                    isCurrent && 'text-amber-400 font-semibold',
                     isUpcoming && 'text-muted-foreground',
                   )}
                 >

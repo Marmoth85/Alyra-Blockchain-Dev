@@ -11,26 +11,59 @@ const DEPLOYMENT_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOYMENT_BLOCK ?? '0')
 // ── Contrat error messages → messages lisibles ────────────────────────────
 
 const ERROR_MESSAGES: Record<string, string> = {
-  "You have already voted": "Vous avez déjà voté pour cette session.",
-  "You're not a voter": "Vous n'êtes pas inscrit comme électeur.",
-  "Already registered": "Cette adresse est déjà inscrite.",
+  // ── Contrat : enregistrement ──────────────────────────────────────────────
+  "Already registered": "Cette adresse est déjà inscrite comme électeur.",
   "Voters registration is not open yet": "L'enregistrement des votants n'est pas ouvert.",
+  // ── Contrat : propositions ────────────────────────────────────────────────
   "Proposals are not allowed yet": "La session de propositions n'est pas encore ouverte.",
   "Vous ne pouvez pas ne rien proposer": "La description de la proposition ne peut pas être vide.",
   "Max proposals reached": "Le nombre maximum de propositions (100) est atteint.",
+  // ── Contrat : vote ────────────────────────────────────────────────────────
+  "You have already voted": "Vous avez déjà voté pour cette session.",
   "Proposal not found": "Proposition introuvable.",
   "Voting session havent started yet": "La session de vote n'a pas encore démarré.",
+  // ── Contrat : accès ───────────────────────────────────────────────────────
+  "You're not a voter": "Vous n'êtes pas inscrit comme électeur.",
+  // ── Contrat : transitions workflow ────────────────────────────────────────
   "Registering proposals cant be started now": "Impossible d'ouvrir les propositions dans la phase actuelle.",
   "Registering proposals havent started yet": "La session de propositions n'a pas encore démarré.",
   "Registering proposals phase is not finished": "La phase de propositions n'est pas encore terminée.",
   "Current status is not voting session ended": "Le vote n'est pas encore terminé.",
+  // ── OpenZeppelin Ownable (custom errors OZ v5) ────────────────────────────
+  "OwnableUnauthorizedAccount": "Vous n'êtes pas autorisé à effectuer cette action (owner requis).",
+  "OwnableInvalidOwner": "Adresse owner invalide.",
+  // ── Wallet / réseau ───────────────────────────────────────────────────────
+  "User rejected": "Transaction annulée par l'utilisateur.",
+  "user rejected": "Transaction annulée par l'utilisateur.",
+  "insufficient funds": "Fonds insuffisants pour payer les frais de transaction.",
+  "network changed": "Le réseau a changé, veuillez réessayer.",
+  "could not be found": "Contrat introuvable sur ce réseau. Vérifiez que vous êtes sur le bon réseau.",
 }
 
-function humanizeContractError(raw: string): string {
-  for (const [key, label] of Object.entries(ERROR_MESSAGES)) {
-    if (raw.includes(key)) return label
+function humanizeContractError(error: unknown): string {
+  // Collect all searchable strings across the full cause chain
+  const candidates: string[] = []
+  let current: unknown = error
+  while (current && typeof current === 'object') {
+    const e = current as { shortMessage?: string; message?: string; name?: string; errorName?: string; reason?: string; cause?: unknown }
+    if (e.shortMessage) candidates.push(e.shortMessage)
+    if (e.message)      candidates.push(e.message)
+    if (e.name)         candidates.push(e.name)
+    if (e.errorName)    candidates.push(e.errorName)
+    if (e.reason)       candidates.push(e.reason)
+    current = e.cause
   }
-  return `Erreur : ${raw}`
+
+  // Return the first known label found anywhere in the chain
+  for (const candidate of candidates) {
+    for (const [key, label] of Object.entries(ERROR_MESSAGES)) {
+      if (candidate.includes(key)) return label
+    }
+  }
+
+  // Fallback: top-level shortMessage is the most readable
+  const top = error as { shortMessage?: string; message?: string }
+  return `Erreur : ${top?.shortMessage ?? top?.message ?? String(error)}`
 }
 
 // ── Core contract state ───────────────────────────────────────────────────
@@ -46,12 +79,12 @@ export function useWorkflowStatus() {
 }
 
 export function useContractOwner() {
-  const { data: owner } = useReadContract({
+  const { data: owner, isSuccess: isOwnerResolved } = useReadContract({
     abi: VOTING_ABI,
     address: VOTING_CONTRACT_ADDRESS,
     functionName: 'owner',
   })
-  return owner as `0x${string}` | undefined
+  return { owner: owner as `0x${string}` | undefined, isOwnerResolved }
 }
 
 export function useWinningProposalID() {
@@ -67,7 +100,7 @@ export function useWinningProposalID() {
 
 export function useRole() {
   const { address, isConnected } = useAccount()
-  const owner = useContractOwner()
+  const { owner, isOwnerResolved } = useContractOwner()
 
   const isOwner = !!(isConnected && address && owner && address.toLowerCase() === owner.toLowerCase())
 
@@ -81,8 +114,9 @@ export function useRole() {
   })
 
   const isVoter = voterQuerySuccess && !!(voterData as VoterData | undefined)?.isRegistered
+  const isRoleResolved = !isConnected || (isOwnerResolved && (isOwner || voterQuerySuccess))
 
-  return { address, isConnected, isOwner, isVoter, voterData: voterData as VoterData | undefined, refetchVoterData }
+  return { address, isConnected, isOwner, isVoter, isRoleResolved, voterData: voterData as VoterData | undefined, refetchVoterData }
 }
 
 // ── Single proposal fetcher (used in list rendering) ─────────────────────
@@ -182,8 +216,10 @@ export function useVotersList() {
 // ── Generic write hook with toast feedback ────────────────────────────────
 
 export function useContractWrite(onSuccess?: () => void) {
-  const { writeContract, data: txHash, isPending, error: writeError } = useWriteContract()
+  const { writeContract: rawWrite, data: txHash, isPending, error: writeError } = useWriteContract()
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash })
+  const publicClient = usePublicClient()
+  const { address } = useAccount()
 
   // Keep a stable ref to onSuccess so it never triggers the effect by itself
   const onSuccessRef = useRef(onSuccess)
@@ -195,7 +231,6 @@ export function useContractWrite(onSuccess?: () => void) {
   useEffect(() => {
     if (isConfirmed && txHash && txHash !== toastedHash.current) {
       toastedHash.current = txHash
-      // Small delay so the user sees the UI settle before the toast appears
       const id = setTimeout(() => {
         toast.success('Transaction confirmée !')
         onSuccessRef.current?.()
@@ -204,21 +239,24 @@ export function useContractWrite(onSuccess?: () => void) {
     }
   }, [isConfirmed, txHash])
 
-  const toastedError = useRef<string | undefined>(undefined)
-
   useEffect(() => {
     if (writeError) {
-      const raw = (writeError as { shortMessage?: string })?.shortMessage ?? writeError.message
-      const msg = humanizeContractError(raw)
-      if (msg !== toastedError.current) {
-        toastedError.current = msg
-        toast.error(msg)
-      }
-    } else {
-      // Reset when error clears so a future identical error toasts again
-      toastedError.current = undefined
+      const msg = humanizeContractError(writeError)
+      toast.error(msg)
     }
   }, [writeError])
+
+  // Simulate first to get the proper Solidity revert reason, then write
+  const writeContract = useCallback(async (params: Parameters<typeof rawWrite>[0]) => {
+    if (!publicClient) { rawWrite(params); return }
+    try {
+      await publicClient.simulateContract({ ...params, account: address } as Parameters<typeof publicClient.simulateContract>[0])
+    } catch (err) {
+      toast.error(humanizeContractError(err))
+      return
+    }
+    rawWrite(params)
+  }, [publicClient, address, rawWrite])
 
   return {
     writeContract,

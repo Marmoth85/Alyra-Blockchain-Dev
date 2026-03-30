@@ -41,7 +41,7 @@ function WinnerCard({ winningId }: { winningId: number }) {
               <p className="text-xl font-semibold text-foreground">{proposal.description}</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              {Number(proposal.voteCount)} vote{Number(proposal.voteCount) !== 1 ? 's' : ''} reçu{Number(proposal.voteCount) !== 1 ? 's' : ''}
+              {Number(proposal.voteCount)} vote{Number(proposal.voteCount) > 1 ? 's' : ''} reçu{Number(proposal.voteCount) > 1 ? 's' : ''}
             </p>
           </div>
         ) : (

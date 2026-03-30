@@ -33,7 +33,7 @@ export function ProposalItem({ id, isWinner, showVoteCount }: Props) {
       <span className="flex-1 text-sm">{proposal.description}</span>
       {showVoteCount && (
         <Badge variant="secondary" className="shrink-0 tabular-nums">
-          {Number(proposal.voteCount)} vote{Number(proposal.voteCount) !== 1 ? 's' : ''}
+          {Number(proposal.voteCount)} vote{Number(proposal.voteCount) > 1 ? 's' : ''}
         </Badge>
       )}
       {isWinner && (

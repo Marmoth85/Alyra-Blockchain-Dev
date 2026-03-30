@@ -1,4 +1,4 @@
-'use client';
+'use client'
 
 import { AppKitButton } from '@reown/appkit/react'
 

@@ -95,12 +95,16 @@ export function ProposalsPanel({ status, isOwner, isVoter, onStatusChange }: Pro
               Propositions soumises
             </CardTitle>
             <Badge variant="secondary">
-              {proposalIds.length} proposition{proposalIds.length !== 1 ? 's' : ''}
+              {proposalIds.length} proposition{proposalIds.length > 1 ? 's' : ''}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {proposalIds.length === 0 ? (
+          {!isVoter ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Seuls les électeurs inscrits peuvent consulter le détail des propositions.
+            </p>
+          ) : proposalIds.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
               Aucune proposition enregistrée pour l'instant
             </p>
@@ -143,7 +147,7 @@ export function ProposalsPanel({ status, isOwner, isVoter, onStatusChange }: Pro
                 </span>
                 <Button
                   onClick={startVoting}
-                  disabled={isTransitioning || proposalIds.length === 0}
+                  disabled={isTransitioning || (isVoter && proposalIds.length === 0)}
                   className="shrink-0"
                 >
                   {isTransitioning ? 'Confirmation…' : 'Ouvrir le vote →'}
