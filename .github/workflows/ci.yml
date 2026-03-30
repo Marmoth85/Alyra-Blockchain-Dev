@@ -13,8 +13,8 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Change directory to projet 2
-        run: cd 4.\ Testing/Projet2 && npm install
+      - name: Change directory to projet 3
+        run: cd 6.\ Dapp/Projet3/backend && npm install
 
       # Installe Node.js (dernière version 22.x disponible)
       - name: Use Node.js 22.x
@@ -34,8 +34,8 @@ jobs:
       # Installe les dépendances seulement si le cache est absent
       - name: Install dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: cd 4.\ Testing/Projet2 && npm ci
+        run: cd 6.\ Dapp/Projet3/backend && npm ci
 
       # Lance les tests Hardhat
       - name: Run Tests
-        run: cd 4.\ Testing/Projet2 && npx hardhat test --coverage
+        run: cd 6.\ Dapp/Projet3/backend && npx hardhat test --coverage
