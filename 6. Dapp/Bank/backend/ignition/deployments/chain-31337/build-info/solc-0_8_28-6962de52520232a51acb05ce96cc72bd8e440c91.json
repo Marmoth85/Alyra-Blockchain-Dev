@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-6962de52520232a51acb05ce96cc72bd8e440c91",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/Bank.sol": "project/contracts/Bank.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/Bank.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity 0.8.28;\n\nerror CannotBeZero();\nerror NotEnoughFunds();\nerror TransferFailed();\n\ncontract Bank {\n    struct Account {\n        uint256 balance;\n        uint256 lastDeposit;\n    }\n\n    mapping(address => Account) private accounts;\n\n    event etherDeposited(address indexed account, uint256 amount);\n    event etherWithdrawn(address indexed account, uint256 amount);\n\n    /// @notice Allows the user to deposit Ether\n    function deposit() external payable {\n        require(msg.value > 0, CannotBeZero());\n        accounts[msg.sender].balance += msg.value;\n        accounts[msg.sender].lastDeposit = block.timestamp;\n        emit etherDeposited(msg.sender, msg.value);\n    }\n\n    /// @notice Allows the user to withdraw Ether\n    /// @param _amount The amount of Ether the user wants to withdraw\n    function withdraw(uint256 _amount) external {\n        require(_amount > 0, CannotBeZero());\n        require(accounts[msg.sender].balance >= _amount, NotEnoughFunds());\n        accounts[msg.sender].balance -= _amount;\n        (bool received, ) = msg.sender.call{value: _amount}(\"\");\n        require(received, TransferFailed());\n        emit etherWithdrawn(msg.sender, _amount);\n    }\n\n    /// @notice Get the balance of a user\n    /// @param _user The user whose balance we want to retrieve\n    /// @return The balance of the user\n    function getBalanceOfUser(address _user) external view returns (uint256) {\n        return accounts[_user].balance;\n    }\n\n    /// @notice Get the timestamp of the last deposit of a user\n    /// @param _user The user whose last deposit timestamp we want to retrieve\n    /// @return The timestamp of the last deposit of the user\n    function getLastDepositTimestamp(\n        address _user\n    ) external view returns (uint256) {\n        return accounts[_user].lastDeposit;\n    }\n}"
+      }
+    }
+  }
+}

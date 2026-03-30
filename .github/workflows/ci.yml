@@ -2,7 +2,7 @@ name: Test Suite
 
 on:
   push:
-    branches: [master, project2]
+    branches: [master, project3]
 
 jobs:
   tests:
