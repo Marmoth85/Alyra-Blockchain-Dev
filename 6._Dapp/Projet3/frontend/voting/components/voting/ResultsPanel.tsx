@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { WorkflowStatus, WORKFLOW_LABELS } from '@/contracts/voting'
-import { useWinningProposalID, useProposal, useProposals } from '@/hooks/useVoting'
+import { useWinningProposalID, useProposal, useProposals, useVoteCounts } from '@/hooks/useVoting'
 import { ProposalItem } from './ProposalItem'
 
 type Props = {
@@ -14,8 +14,17 @@ type Props = {
   isOwner: boolean
 }
 
-function WinnerCard({ winningId }: { winningId: number }) {
-  const { proposal, isLoading } = useProposal(winningId, true)
+type WinnerCardProps = {
+  winningId: number
+  isVoter: boolean
+  isOwner: boolean
+  winningVoteCount: number
+}
+
+function WinnerCard({ winningId, isVoter, isOwner, winningVoteCount }: WinnerCardProps) {
+  const canReadDetails = isVoter || isOwner
+  const { proposal, isLoading } = useProposal(winningId, canReadDetails)
+  const displayVoteCount = proposal ? Number(proposal.voteCount) : winningVoteCount
 
   return (
     <Card className="border-yellow-400 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/30 dark:to-amber-950/20">
@@ -27,25 +36,27 @@ function WinnerCard({ winningId }: { winningId: number }) {
         <CardDescription>La proposition gagnante est :</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {canReadDetails && isLoading ? (
           <div className="space-y-2">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/4" />
           </div>
-        ) : proposal ? (
+        ) : (
           <div className="space-y-2">
             <div className="flex items-center gap-3">
               <span className="flex size-8 items-center justify-center rounded-full bg-yellow-400/30 text-sm font-bold text-yellow-700">
                 {winningId}
               </span>
-              <p className="text-xl font-semibold text-foreground">{proposal.description}</p>
+              {proposal ? (
+                <p className="text-xl font-semibold text-foreground">{proposal.description}</p>
+              ) : (
+                <p className="text-lg font-semibold text-foreground">Proposition n°{winningId}</p>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {Number(proposal.voteCount)} vote{Number(proposal.voteCount) > 1 ? 's' : ''} reçu{Number(proposal.voteCount) > 1 ? 's' : ''}
+              {displayVoteCount} vote{displayVoteCount > 1 ? 's' : ''} reçu{displayVoteCount > 1 ? 's' : ''}
             </p>
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">Résultat indisponible</p>
         )}
       </CardContent>
     </Card>
@@ -106,6 +117,7 @@ function NotYetPanel({ status }: { status: WorkflowStatus | undefined }) {
 export function ResultsPanel({ status, isVoter, isOwner }: Props) {
   const { winningProposalID } = useWinningProposalID()
   const { proposalIds } = useProposals(isVoter || isOwner)
+  const { voteCounts } = useVoteCounts()
 
   const isTallied = status === WorkflowStatus.VotesTallied
 
@@ -113,10 +125,17 @@ export function ResultsPanel({ status, isVoter, isOwner }: Props) {
     return <NotYetPanel status={status} />
   }
 
+  const winningVoteCount = winningProposalID !== undefined ? (voteCounts[winningProposalID] ?? 0) : 0
+
   return (
     <div className="space-y-6">
       {winningProposalID !== undefined && (
-        <WinnerCard winningId={winningProposalID} />
+        <WinnerCard
+          winningId={winningProposalID}
+          isVoter={isVoter}
+          isOwner={isOwner}
+          winningVoteCount={winningVoteCount}
+        />
       )}
 
       {(isVoter || isOwner) && proposalIds.length > 0 && winningProposalID !== undefined && (

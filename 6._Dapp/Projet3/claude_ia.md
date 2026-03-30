@@ -300,3 +300,27 @@ modifie claude_ia.txt pour en faire un fichier markdown. ne change pas son conte
 ---
 
 Dans le fichier claude_ia.md, tous les prompts sont séparés par trois sauts de ligne. Pour un fichier texte, ça passe bien, mais en markdown, cela ne se voit pas dans le rendu. Modifie le markdown pour qu'on voit une petite ligne fine entre chaque prompt et dans le fichier .md supprimes les sauts de lignes inutiles : ne garde qu'un ou deux sauts de lignes quand on change vraiment de section. N'en garde pas plus que nécessaire. Enfin, ajoute ce tout dernier prompt à la fin de ce même fichier et on sera tout bon.
+
+---
+
+Dans l'onglet Vote, si la liste des votes ou des propositions n'est pas visible, il faudrait afficher le nombre de votes effectués.
+Le résultat du vote doit être public. Dans l'onglet Résultats, je ne retrouve pas le résultat du vote en tant que owner ou visiteur.
+Ajoute ce prompt à la fin du fichier claude_ia.md
+
+---
+
+J'ai eu un bug lors des tests sur les votes.
+Lorsque le deuxième électeur a voté, cela mis "2 votes" puis plusieurs secondes plus tard c'est passé à "3 votes" alors qu'il n'y en n'avait que 2.
+Idem après le troisième vote où du coup ça en affichait 4 (4 comptes étaient whitelistés, je ne sais pas si ça a un rapport).
+Mais, une fois le décompte des votes effectués, le nombre de votes est bon.
+Il y a un problème à corriger là, et ajoute ce prompt au fichier claude_ia.md sans oublier le séparateur de prompts.
+
+---
+
+En tant que owner, dans le menu Votes, je veux voir le nombre de votes effectués, mais sans voir les proposition et les votes si je ne suis pas moi-même électeur.
+Ajoute ce prompt comme précédemment.
+
+---
+
+Dans l'onglet Votes, affiche le nombre de proposition juste à côté de "propositions en lice" car quand il est juste à côté du nombre de votes, c'est pas hyper clair.
+Rajoute aussi ce prompt au fichier comme précédemment.

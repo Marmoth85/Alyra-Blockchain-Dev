@@ -8,7 +8,7 @@ A full-stack decentralised application built as part of the [Alyra](https://www.
 
 The application is deployed and accessible at:
 
-**[https://alyra-blockchain-dev-hvll-gx5k1m39k-marmoth85s-projects.vercel.app](https://alyra-blockchain-dev-hvll-gx5k1m39k-marmoth85s-projects.vercel.app)**
+**[https://alyra-blockchain-dev-hvll.vercel.app](https://alyra-blockchain-dev-hvll.vercel.app)**
 
 To interact with it you will need MetaMask (or any EIP-1193 compatible wallet) connected to the **Sepolia** testnet.
 
@@ -26,9 +26,7 @@ The `Voting.sol` contract is deployed and verified on Sepolia:
 
 A walkthrough of the dApp demonstrating the full voting workflow is available on YouTube:
 
-**[Watch the demo — coming soon](#)**
-
-> _Link will be updated once the video is published._
+**[Watch the demo](https://youtu.be/gXT7x_0RP1c)**
 
 ---
 

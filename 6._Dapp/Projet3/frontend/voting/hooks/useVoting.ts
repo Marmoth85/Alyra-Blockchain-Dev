@@ -174,6 +174,52 @@ export function useProposals(isVoter: boolean) {
   return { proposalIds, reload: loadHistoricalProposals }
 }
 
+// ── Vote counts per proposal (via Voted events — public, no voter restriction) ──
+
+export function useVoteCounts() {
+  const [voteCounts, setVoteCounts] = useState<Record<number, number>>({})
+  const publicClient = usePublicClient()
+
+  const loadVotes = useCallback(async () => {
+    if (!publicClient) return
+    try {
+      const logs = await publicClient.getLogs({
+        address: VOTING_CONTRACT_ADDRESS,
+        event: parseAbiItem('event Voted(address indexed voter, uint256 proposalId)'),
+        fromBlock: DEPLOYMENT_BLOCK,
+        toBlock: 'latest',
+      })
+      const counts: Record<number, number> = {}
+      for (const log of logs) {
+        const id = Number((log as { args: { proposalId: bigint } }).args.proposalId)
+        counts[id] = (counts[id] ?? 0) + 1
+      }
+      setVoteCounts(counts)
+    } catch {
+      // contract not deployed or no votes yet
+    }
+  }, [publicClient])
+
+  useEffect(() => {
+    loadVotes()
+  }, [loadVotes])
+
+  // On new vote event, reload everything from the chain to avoid double-counting
+  // (useWatchContractEvent can replay recent events that getLogs already counted)
+  useWatchContractEvent({
+    abi: VOTING_ABI,
+    address: VOTING_CONTRACT_ADDRESS,
+    eventName: 'Voted',
+    onLogs() {
+      loadVotes()
+    },
+  })
+
+  const totalVotes = Object.values(voteCounts).reduce((a, b) => a + b, 0)
+
+  return { voteCounts, totalVotes, reload: loadVotes }
+}
+
 // ── Voters list (via events) ──────────────────────────────────────────────
 
 export function useVotersList() {

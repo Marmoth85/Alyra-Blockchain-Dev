@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { WorkflowStatus } from '@/contracts/voting'
 import { VOTING_ABI, VOTING_CONTRACT_ADDRESS } from '@/contracts/voting'
-import { useProposals, useContractWrite, useWorkflowTransitions, useProposal } from '@/hooks/useVoting'
+import { useProposals, useContractWrite, useWorkflowTransitions, useProposal, useVoteCounts } from '@/hooks/useVoting'
 import type { VoterData } from '@/contracts/voting'
 
 type VoteOptionProps = {
@@ -68,6 +68,7 @@ export function VotingPanel({ status, isOwner, isVoter, voterData, onStatusChang
   const [selectedProposalId, setSelectedProposalId] = useState<number | null>(null)
 
   const { proposalIds, reload } = useProposals(isVoter || isOwner)
+  const { totalVotes } = useVoteCounts()
   const { writeContract, isPending: isVoting } = useContractWrite(() => {
     reload()
     setSelectedProposalId(null)
@@ -151,32 +152,44 @@ export function VotingPanel({ status, isOwner, isVoter, voterData, onStatusChang
         </Card>
       )}
 
+      {/* Vote count for owner who is not a voter — no proposal details exposed */}
+      {isOwner && !isVoter && (canVote || status === WorkflowStatus.VotingSessionEnded) && (
+        <Alert>
+          <AlertDescription className="text-sm">
+            {totalVotes} vote{totalVotes > 1 ? 's' : ''} exprimé{totalVotes > 1 ? 's' : ''} au total.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Proposal overview for voters who have voted or when voting is not active */}
-      {(isVoter || isOwner) && (hasVoted || !canVote) && proposalIds.length > 0 && (
+      {isVoter && (hasVoted || !canVote) && proposalIds.length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Propositions en lice</CardTitle>
-              <Badge variant="secondary">{proposalIds.length}</Badge>
+              <CardTitle className="flex items-center gap-2 text-base">
+                Propositions en lice
+                <Badge variant="secondary">{proposalIds.length}</Badge>
+              </CardTitle>
+              <Badge variant="outline" className="text-xs">
+                {totalVotes} vote{totalVotes > 1 ? 's' : ''}
+              </Badge>
             </div>
           </CardHeader>
-          {isVoter && (
-            <CardContent>
-              <ul className="space-y-2">
-                {proposalIds.map(id => (
-                  <li key={id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                      {id}
-                    </span>
-                    <ProposalLabel id={id} />
-                    {hasVoted && alreadyVotedFor === id && (
-                      <Badge className="shrink-0 bg-green-500 text-white">Votre vote</Badge>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          )}
+          <CardContent>
+            <ul className="space-y-2">
+              {proposalIds.map(id => (
+                <li key={id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                    {id}
+                  </span>
+                  <ProposalLabel id={id} />
+                  {hasVoted && alreadyVotedFor === id && (
+                    <Badge className="shrink-0 bg-green-500 text-white">Votre vote</Badge>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       )}
 
