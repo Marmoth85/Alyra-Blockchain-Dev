@@ -8,7 +8,7 @@ A full-stack decentralised application built as part of the [Alyra](https://www.
 
 The application is deployed and accessible at:
 
-**[https://alyra-blockchain-dev-hvll.vercel.app](https://alyra-blockchain-dev-hvll.vercel.app)**
+**[https://alyra-blockchain-dev.vercel.app](https://alyra-blockchain-dev.vercel.app)**
 
 To interact with it you will need MetaMask (or any EIP-1193 compatible wallet) connected to the **Sepolia** testnet.
 
