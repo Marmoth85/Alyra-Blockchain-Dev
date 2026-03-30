@@ -6,6 +6,8 @@ import { parseAbiItem } from 'viem'
 import { toast } from 'sonner'
 import { VOTING_ABI, VOTING_CONTRACT_ADDRESS, WorkflowStatus, type VoterData, type ProposalData } from '@/contracts/voting'
 
+const DEPLOYMENT_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOYMENT_BLOCK ?? '0')
+
 // ── Contrat error messages → messages lisibles ────────────────────────────
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -110,7 +112,7 @@ export function useProposals(isVoter: boolean) {
       const logs = await publicClient.getLogs({
         address: VOTING_CONTRACT_ADDRESS,
         event: parseAbiItem('event ProposalRegistered(uint256 proposalId)'),
-        fromBlock: 0n,
+        fromBlock: DEPLOYMENT_BLOCK,
         toBlock: 'latest',
       })
       const ids = logs.map(log => Number((log as { args: { proposalId: bigint } }).args.proposalId))
@@ -150,7 +152,7 @@ export function useVotersList() {
       const logs = await publicClient.getLogs({
         address: VOTING_CONTRACT_ADDRESS,
         event: parseAbiItem('event VoterRegistered(address indexed voterAddress)'),
-        fromBlock: 0n,
+        fromBlock: DEPLOYMENT_BLOCK,
         toBlock: 'latest',
       })
       const addresses = logs.map(log => String((log as { args: { voterAddress: string } }).args.voterAddress))
