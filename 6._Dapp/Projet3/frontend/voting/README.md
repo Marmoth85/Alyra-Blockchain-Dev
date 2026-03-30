@@ -1,36 +1,120 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project 3 — Frontend
 
-## Getting Started
+A Next.js decentralised voting application built with wagmi, viem, and Reown AppKit. It interacts with the `Voting.sol` smart contract deployed on a local Hardhat node or on Sepolia.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **Next.js 16** — React framework
+- **wagmi + viem** — Ethereum interactions
+- **Reown AppKit** (ex-WalletConnect) — wallet connection UI
+- **shadcn/ui** — component library (Radix UI primitives)
+- **Tailwind CSS** — styling
+- **Sonner** — toast notifications
+
+## Prerequisites
+
+- Node.js ≥ 18
+- npm
+- MetaMask (or any EIP-1193 compatible wallet)
+- A [Reown](https://dashboard.reown.com) project ID
+
+## Installation
+
+```shell
+cd frontend/voting
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Install the shadcn/ui components used by the app:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```shell
+npx shadcn@latest add alert badge button card input label separator skeleton sonner
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+> **SSL issues behind a corporate proxy?** Disable strict SSL around `npm install`, then re-enable it:
+> ```shell
+> npm config set strict-ssl false
+> npm install
+> npm config set strict-ssl true
+> ```
+> For `npx` commands, prefix with `NODE_TLS_REJECT_UNAUTHORIZED=0`.
 
-## Learn More
+## Environment variables
 
-To learn more about Next.js, take a look at the following resources:
+Create a `.env.local` file in `frontend/voting/`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```env
+# Reown / WalletConnect project ID (required — get one at https://dashboard.reown.com)
+NEXT_PUBLIC_PROJECT_ID=your_reown_project_id
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Contract address — use the address matching the network you intend to target
+NEXT_PUBLIC_VOTING_CONTRACT_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
 
-## Deploy on Vercel
+# First block to scan for past events (0 for local Hardhat, deployment block number for Sepolia)
+NEXT_PUBLIC_DEPLOYMENT_BLOCK=0
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Known contract addresses:
+- **Hardhat local:** `0x5FbDB2315678afecb367f032d93F642f64180aa3`
+- **Sepolia:** `0xc5848F895C9b6c47aBF3BdD24C30b50F9be283F5`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Running locally against Hardhat
+
+1. Start the local Hardhat node (from the `backend/` directory):
+
+```shell
+npx hardhat node
+```
+
+2. Deploy the contract on localhost (from `backend/`):
+
+```shell
+npx hardhat ignition deploy ignition/modules/Voting.ts --network localhost
+```
+
+3. In `.env.local`, set `NEXT_PUBLIC_VOTING_CONTRACT_ADDRESS` to the local address and `NEXT_PUBLIC_DEPLOYMENT_BLOCK=0`.
+
+4. Start the dev server:
+
+```shell
+npm run dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) and connect MetaMask to the **Hardhat** network (`localhost:8545`, chain ID `31337`). Import an account using the private keys printed by `npx hardhat node`.
+
+## Running against Sepolia
+
+1. In `.env.local`, set:
+
+```env
+NEXT_PUBLIC_VOTING_CONTRACT_ADDRESS=0xc5848F895C9b6c47aBF3BdD24C30b50F9be283F5
+NEXT_PUBLIC_DEPLOYMENT_BLOCK=<deployment_block_number>
+```
+
+2. Start the dev server:
+
+```shell
+npm run dev
+```
+
+3. Connect MetaMask to **Sepolia** and use the wallet that deployed the contract to act as owner.
+
+## Deploying on Vercel
+
+Set the following environment variables in the Vercel project dashboard:
+
+| Variable | Value |
+|---|---|
+| `NEXT_PUBLIC_PROJECT_ID` | Your Reown project ID |
+| `NEXT_PUBLIC_VOTING_CONTRACT_ADDRESS` | Sepolia contract address |
+| `NEXT_PUBLIC_DEPLOYMENT_BLOCK` | Block number of the deployment transaction |
+
+## Roles
+
+| Role | Capabilities |
+|---|---|
+| **Owner** | Register voters, advance the workflow through all phases, tally votes |
+| **Registered voter** | Submit proposals, cast a vote, view the voters list and results |
+| **Visitor** | View results only |
+
+The app automatically redirects to the tab matching the current workflow phase on login.

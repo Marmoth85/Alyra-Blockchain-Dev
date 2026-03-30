@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
-import Layout from '@/components/shared/Layout'
+import Layout from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -10,8 +10,9 @@ import { headers } from 'next/headers' // added
 import ContextProvider from '@/context'
 
 export const metadata: Metadata = {
-  title: 'AppKit Example App',
-  description: 'Powered by Reown'
+  title: 'VotingDApp',
+  description: 'Décentralised voting on Ethereum',
+  icons: { icon: '/icon.svg' },
 }
 
 export default async function RootLayout({
@@ -23,7 +24,7 @@ export default async function RootLayout({
   const cookies = headersObj.get('cookie')
 
   return (
-    <html lang="en">
+    <html lang="fr" className="dark">
       <body className={inter.className}>
         <ContextProvider cookies={cookies}>
           <Layout>

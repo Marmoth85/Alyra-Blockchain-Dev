@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { WorkflowStatus } from '@/contracts/voting'
 import { useRole, useWorkflowStatus } from '@/hooks/useVoting'
@@ -24,14 +24,32 @@ const TAB_LABELS: Record<Tab, string> = {
 
 export function VotingApp() {
   const [activeTab, setActiveTab] = useState<Tab>('results')
+  const hasAutoNavigated = useRef(false)
 
-  const { address, isConnected, isOwner, isVoter, voterData, refetchVoterData } = useRole()
+  const { address, isConnected, isOwner, isVoter, isRoleResolved, voterData, refetchVoterData } = useRole()
   const { status, refetch: refetchStatus } = useWorkflowStatus()
+
+  // Reset auto-navigation when account changes so the new account lands on the right tab
+  useEffect(() => {
+    hasAutoNavigated.current = false
+  }, [address])
+
+  useEffect(() => {
+    if (hasAutoNavigated.current || status === undefined || !isRoleResolved) return
+    hasAutoNavigated.current = true
+
+    if (!isOwner && !isVoter) { setActiveTab('results'); return }
+
+    if (status === WorkflowStatus.RegisteringVoters) setActiveTab('voters')
+    else if (status === WorkflowStatus.ProposalsRegistrationStarted || status === WorkflowStatus.ProposalsRegistrationEnded) setActiveTab('proposals')
+    else if (status === WorkflowStatus.VotingSessionStarted || status === WorkflowStatus.VotingSessionEnded) setActiveTab('votes')
+    else setActiveTab('results')
+  }, [status, isOwner, isVoter, isRoleResolved])
 
   // Determine which tabs are visible based on role
   const visibleTabs: Tab[] = (() => {
     if (isOwner) return ['voters', 'proposals', 'votes', 'results']
-    if (isVoter) return ['proposals', 'votes', 'results']
+    if (isVoter) return ['voters', 'proposals', 'votes', 'results']
     return ['results']
   })()
 
@@ -56,8 +74,8 @@ export function VotingApp() {
             <Badge
               variant={isOwner ? 'default' : isVoter ? 'secondary' : 'outline'}
               className={cn(
-                isOwner && 'bg-purple-600 text-white',
-                isVoter && !isOwner && 'bg-blue-100 text-blue-700 border-blue-200',
+                isOwner && 'bg-amber-500 text-black border-amber-400',
+                isVoter && !isOwner && 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
               )}
             >
               {isOwner ? 'Administrateur' : isVoter ? 'Électeur enregistré' : 'Visiteur'}
@@ -91,20 +109,20 @@ export function VotingApp() {
               {TAB_LABELS[tab]}
               {/* Highlight dot for active workflow phase */}
               {tab === 'voters' && status === WorkflowStatus.RegisteringVoters && (
-                <span className="ml-1.5 inline-block size-1.5 rounded-full bg-green-500 align-middle" />
+                <span className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-400 align-middle animate-pulse" />
               )}
               {tab === 'proposals' &&
                 (status === WorkflowStatus.ProposalsRegistrationStarted ||
                   status === WorkflowStatus.ProposalsRegistrationEnded) && (
-                  <span className="ml-1.5 inline-block size-1.5 rounded-full bg-green-500 align-middle" />
+                  <span className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-400 align-middle animate-pulse" />
                 )}
               {tab === 'votes' &&
                 (status === WorkflowStatus.VotingSessionStarted ||
                   status === WorkflowStatus.VotingSessionEnded) && (
-                  <span className="ml-1.5 inline-block size-1.5 rounded-full bg-green-500 align-middle" />
+                  <span className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-400 align-middle animate-pulse" />
                 )}
               {tab === 'results' && status === WorkflowStatus.VotesTallied && (
-                <span className="ml-1.5 inline-block size-1.5 rounded-full bg-yellow-400 align-middle" />
+                <span className="ml-1.5 inline-block size-1.5 rounded-full bg-amber-400 align-middle animate-pulse" />
               )}
             </button>
           ))}

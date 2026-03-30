@@ -108,7 +108,7 @@ export function VotersPanel({ status, isOwner, onStatusChange }: Props) {
               <Users className="size-4" />
               Liste des électeurs
             </CardTitle>
-            <Badge variant="secondary">{voters.length} votant{voters.length !== 1 ? 's' : ''}</Badge>
+            <Badge variant="secondary">{voters.length} votant{voters.length > 1 ? 's' : ''}</Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -124,7 +124,7 @@ export function VotersPanel({ status, isOwner, onStatusChange }: Props) {
                   <code className="text-xs bg-muted px-2 py-1 rounded flex-1 font-mono break-all">
                     {addr}
                   </code>
-                  <Badge variant="outline" className="text-green-600 border-green-200 shrink-0">
+                  <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 shrink-0">
                     Inscrit
                   </Badge>
                 </li>

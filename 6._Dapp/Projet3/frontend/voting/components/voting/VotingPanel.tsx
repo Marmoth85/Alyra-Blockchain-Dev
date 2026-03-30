@@ -160,21 +160,23 @@ export function VotingPanel({ status, isOwner, isVoter, voterData, onStatusChang
               <Badge variant="secondary">{proposalIds.length}</Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {proposalIds.map(id => (
-                <li key={id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                    {id}
-                  </span>
-                  <ProposalLabel id={id} />
-                  {hasVoted && alreadyVotedFor === id && (
-                    <Badge className="shrink-0 bg-green-500 text-white">Votre vote</Badge>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
+          {isVoter && (
+            <CardContent>
+              <ul className="space-y-2">
+                {proposalIds.map(id => (
+                  <li key={id} className="flex items-center gap-3 rounded-lg border border-border px-3 py-2 text-sm">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
+                      {id}
+                    </span>
+                    <ProposalLabel id={id} />
+                    {hasVoted && alreadyVotedFor === id && (
+                      <Badge className="shrink-0 bg-green-500 text-white">Votre vote</Badge>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          )}
         </Card>
       )}
 
